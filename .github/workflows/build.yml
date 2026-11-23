@@ -43,6 +43,15 @@ jobs:
           file: ./${{ matrix.service }}/Dockerfile
           push: true
           tags: ghcr.io/muhammadyousafkhatana/dhaba-${{ matrix.service }}:latest
+      - name: Verify deployment secrets are configured
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          test -n "$EC2_HOST" && echo "EC2_HOST configured" || { echo "EC2_HOST MISSING"; exit 1; }
+          test -n "$EC2_USER" && echo "EC2_USER configured" || { echo "EC2_USER MISSING"; exit 1; }
+          test -n "$EC2_SSH_KEY" && echo "EC2_SSH_KEY configured" || { echo "EC2_SSH_KEY MISSING"; exit 1; }
 
   deploy-staging:
     needs: build
