@@ -1,0 +1,30 @@
+name: Deploy production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy production over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            cd ~/dhaba-orders
+            git fetch origin main
+            git reset --hard origin/main
+            kubectl apply -k k8s/overlays/production
+            for d in $(kubectl get deployments -n production -o name); do
+              kubectl rollout status "$d" -n production --timeout=240s
+            done
+            kubectl get pods,svc -n production

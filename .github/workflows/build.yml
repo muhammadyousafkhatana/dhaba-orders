@@ -1,7 +1,8 @@
-name: Build and publish Dhaba services
+name: Build, publish and deploy staging
 
 on:
   push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -42,3 +43,26 @@ jobs:
           file: ./${{ matrix.service }}/Dockerfile
           push: true
           tags: ghcr.io/muhammadyousafkhatana/dhaba-${{ matrix.service }}:latest
+
+  deploy-staging:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy staging over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            cd ~/dhaba-orders
+            git fetch origin main
+            git reset --hard origin/main
+            kubectl apply -k k8s/overlays/staging
+            for d in $(kubectl get deployments -n staging -o name); do
+              kubectl rollout status "$d" -n staging --timeout=240s
+            done
+            kubectl get pods -n staging
